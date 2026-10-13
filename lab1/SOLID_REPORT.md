@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-The Kotlin application implements **3 SOLID principles** completely, with 2 partially implemented due to a single concrete type reference.
+The Kotlin application implements **all 5 SOLID principles** completely.
 
-- **All 5 principles satisfied**:
+- **Principles satisfied**:
   1. **Single Responsibility Principle (SRP)**
   2. **Open/Closed Principle (OCP)**
   3. **Liskov Substitution Principle (LSP)**
@@ -59,14 +59,14 @@ classDiagram
 
     class OrderCheckoutService {
         -OrderReader orderReader
-        -BulkDiscountPricingStrategy pricingStrategy
+        -PricingStrategy pricingStrategy
         -ReceiptPrinter receiptPrinter
         +processCheckout()
     }
 
     OrderCheckoutService --> OrderReader : depends on (Interface)
+    OrderCheckoutService --> PricingStrategy : depends on (Interface)
     OrderCheckoutService --> ReceiptPrinter : depends on (Interface)
-    OrderCheckoutService ..> BulkDiscountPricingStrategy : tight coupling (Concrete class)
 ```
 
 ---
@@ -92,7 +92,7 @@ Responsibilities are strictly isolated across separate types:
 // src/main/kotlin/Printer.kt
 class OrderCheckoutService(
     private val orderReader: OrderReader,
-    private val pricingStrategy: BulkDiscountPricingStrategy,
+    private val pricingStrategy: PricingStrategy,
     private val receiptPrinter: ReceiptPrinter
 ) {
     fun processCheckout() {
@@ -176,20 +176,22 @@ class BulkDiscountPricingStrategy(
 ### 4. Dependency Inversion Principle (DIP)
 > *High-level modules should not depend on low-level modules. Both should depend on abstractions.*
 
-#### Status: PARTIAL (Coupling Defect Found)
+#### Status: PASS
 
 #### Analysis
-In [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16), abstraction injection is used for reader and printer, but broken for pricing:
+In [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16), abstraction injection is used for all collaborating dependencies:
 - `orderReader: OrderReader` -> Abstraction (**Adheres**)
+- `pricingStrategy: PricingStrategy` -> Abstraction (**Adheres**)
 - `receiptPrinter: ReceiptPrinter` -> Abstraction (**Adheres**)
-- `pricingStrategy: BulkDiscountPricingStrategy` -> **Concrete Implementation (Violates DIP)**
+
+High-level business logic is fully decoupled from low-level modules (console input/output mechanisms and specific pricing algorithms). All collaborators are injected via constructor.
 
 #### Code Reference
 ```kotlin
 // src/main/kotlin/Printer.kt:16
 class OrderCheckoutService(
     private val orderReader: OrderReader,
-    private val pricingStrategy: BulkDiscountPricingStrategy, // <-- Concrete class dependency
+    private val pricingStrategy: PricingStrategy,
     private val receiptPrinter: ReceiptPrinter
 )
 ```
@@ -199,28 +201,19 @@ class OrderCheckoutService(
 ### 5. Open/Closed Principle (OCP)
 > *Software entities should be open for extension, but closed for modification.*
 
-#### Status: PARTIAL
+#### Status: PASS
 
 #### Analysis
-Although [`PricingStrategy`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Contracts.kt#L7) was designed for open extension, the consumer [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16) is closed to other strategies because it only accepts [`BulkDiscountPricingStrategy`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/PricingStrategies.kt#L7). Passing standard [`PricingStrategies`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/PricingStrategies.kt#L1) or any future pricing implementation requires modifying [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16).
+[`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16) is open for extension and closed for modification through the [`PricingStrategy`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Contracts.kt#L7) contract. New pricing models (e.g. seasonal discounts, tiered rates) can be added by implementing [`PricingStrategy`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Contracts.kt#L7) without modifying existing checkout orchestration logic.
 
 ---
 
-## Recommended 1-Line Fix
+## Architecture Quality & Remaining Cleanups
 
-To achieve 100% compliance across all 5 SOLID principles, update [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16) to depend on the [`PricingStrategy`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Contracts.kt#L7) interface:
+The implementation achieves 100% compliance across all 5 SOLID principles. Minor refactoring recommendations for idiomatic code organization:
 
-```diff
---- a/src/main/kotlin/Printer.kt
-+++ b/src/main/kotlin/Printer.kt
-@@ -16,1 +16,1 @@
--class OrderCheckoutService(private val orderReader: OrderReader, private val pricingStrategy: BulkDiscountPricingStrategy ,private val receiptPrinter: ReceiptPrinter) {
-+class OrderCheckoutService(private val orderReader: OrderReader, private val pricingStrategy: PricingStrategy, private val receiptPrinter: ReceiptPrinter) {
-```
-
-### Additional Cleanups
-1. **Naming**: Rename class [`PricingStrategies`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/PricingStrategies.kt#L1) to `StandardPricingStrategy` (singular).
-2. **File Placement**: Move [`ConsoleOrderReader`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L1) and [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16) out of [`Printer.kt`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt) into dedicated files.
+1. **Naming**: Rename class [`PricingStrategies`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/PricingStrategies.kt#L1) to `StandardPricingStrategy` (singular naming convention for a single strategy).
+2. **File Placement**: Move [`ConsoleOrderReader`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L1) and [`OrderCheckoutService`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt#L16) out of [`Printer.kt`](file:///home/ilie/Documents/tmps/lab1/src/main/kotlin/Printer.kt) into dedicated files matching class names.
 
 ---
 
